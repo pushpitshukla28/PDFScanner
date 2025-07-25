@@ -1,23 +1,26 @@
-# Use a slim, official Python base image
-FROM python:3.10-slim
+# Use Python 3.9 slim image
+FROM python:3.9-slim
 
-# Set the working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# Copy the requirements file into the container at /app
-# We will create this file on the fly during the build
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install the required packages
-# Using --no-cache-dir makes the image smaller
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the main script into the container at /app
+# Copy the main script
 COPY main.py .
 
-# Create directories for input and output data
-# These will be mounted as volumes when the container is run
+# Create input and output directories
 RUN mkdir -p /app/input /app/output
 
-# Set the command to run when the container starts
+# Set the default command
 CMD ["python", "main.py"]

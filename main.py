@@ -14,10 +14,12 @@ def get_text_properties(text_element):
     
     # Iterate through each character in the text element to check its properties
     for text_line in text_element:
-        if hasattr(text_line, 'size'): # Check if it's a character with size info
-            font_sizes.append(text_line.size)
-            if hasattr(text_line, 'fontname'):
-                font_names.append(text_line.fontname)
+        if hasattr(text_line, '_objs'):
+            for char in text_line._objs:
+                if isinstance(char, LTChar):
+                    font_sizes.append(char.height)
+                    if hasattr(char, 'fontname'):
+                        font_names.append(char.fontname)
 
     if not font_sizes:
         return 0, False
@@ -85,26 +87,36 @@ def extract_outline_from_pdf(pdf_path):
     """
     all_text_elements = []
     
+    print(f"Starting PDF processing for: {pdf_path}")
+    
     # --- Pass 1: Collect all text elements and their properties ---
     try:
         for page_layout in extract_pages(pdf_path):
+            print(f"Processing page {page_layout.pageid}")
             for element in page_layout:
                 if isinstance(element, LTTextContainer):
                     avg_font_size, is_bold = get_text_properties(element)
-                    all_text_elements.append({
-                        'element': element,
-                        'page_number': page_layout.pageid,
-                        'font_size': avg_font_size,
-                        'is_bold': is_bold,
-                        'page_width': page_layout.width
-                    })
+                    text_content = element.get_text().strip()
+                    if text_content:  # Only add non-empty text
+                        all_text_elements.append({
+                            'element': element,
+                            'page_number': page_layout.pageid,
+                            'font_size': avg_font_size,
+                            'is_bold': is_bold,
+                            'page_width': page_layout.width,
+                            'text': text_content
+                        })
     except Exception as e:
         print(f"Error during PDF parsing with pdfminer.six: {e}")
         return None
 
+    print(f"Found {len(all_text_elements)} text elements")
+
     # Get a sorted list of unique font sizes found in the document, largest first
     all_font_sizes = [el['font_size'] for el in all_text_elements if el['font_size'] > 0]
     unique_font_sizes = sorted(list(set(all_font_sizes)), reverse=True)
+    
+    print(f"Unique font sizes: {unique_font_sizes}")
 
     document_title = "Untitled Document"
     outline = []
@@ -113,7 +125,7 @@ def extract_outline_from_pdf(pdf_path):
     # --- Pass 2: Identify and classify the title and headings ---
     for item in all_text_elements:
         text_element = item['element']
-        text_content = text_element.get_text().strip()
+        text_content = item['text']
 
         if not text_content:
             continue
@@ -125,6 +137,7 @@ def extract_outline_from_pdf(pdf_path):
         if not found_title and item['page_number'] == 1 and font_size >= (unique_font_sizes[0] if unique_font_sizes else 20):
             document_title = text_content
             found_title = True
+            print(f"Found title: {document_title}")
             continue # Don't also classify the title as a heading
 
         # Use our rules to check if it's a heading
@@ -135,6 +148,9 @@ def extract_outline_from_pdf(pdf_path):
                 "text": text_content,
                 "page": item['page_number']
             })
+            print(f"Found heading ({level}): {text_content}")
+
+    print(f"Extracted {len(outline)} headings")
 
     # Final JSON structure
     return {
@@ -147,27 +163,54 @@ if __name__ == "__main__":
     input_dir = "/app/input"
     output_dir = "/app/output"
 
-    # For local testing, you might want to use a local folder instead
-    # Example:
-    # input_dir = "input"
-    # output_dir = "output"
-
+    print(f"Input directory: {input_dir}")
+    print(f"Output directory: {output_dir}")
+    
+    # Check if directories exist
+    if not os.path.exists(input_dir):
+        print(f"Error: Input directory {input_dir} does not exist!")
+        exit(1)
+        
     if not os.path.exists(output_dir):
+        print(f"Creating output directory: {output_dir}")
         os.makedirs(output_dir)
 
-    # Process all PDF files found in the input directory
-    for filename in os.listdir(input_dir):
-        if filename.lower().endswith(".pdf"):
-            pdf_path = os.path.join(input_dir, filename)
-            output_filename = os.path.splitext(filename)[0] + ".json"
-            output_path = os.path.join(output_dir, output_filename)
+    # List files in input directory
+    input_files = os.listdir(input_dir)
+    print(f"Files in input directory: {input_files}")
+    
+    pdf_files = [f for f in input_files if f.lower().endswith(".pdf")]
+    print(f"PDF files found: {pdf_files}")
+    
+    if not pdf_files:
+        print("No PDF files found in input directory!")
+        exit(0)
 
-            print(f"Processing '{filename}'...")
+    # Process all PDF files found in the input directory
+    for filename in pdf_files:
+        pdf_path = os.path.join(input_dir, filename)
+        output_filename = os.path.splitext(filename)[0] + ".json"
+        output_path = os.path.join(output_dir, output_filename)
+
+        print(f"\nProcessing '{filename}'...")
+        print(f"Full path: {pdf_path}")
+        
+        # Check if file exists and is readable
+        if not os.path.exists(pdf_path):
+            print(f"Error: File {pdf_path} does not exist!")
+            continue
+            
+        try:
             outline_data = extract_outline_from_pdf(pdf_path)
 
             if outline_data:
                 with open(output_path, 'w', encoding='utf-8') as f:
                     json.dump(outline_data, f, indent=4, ensure_ascii=False)
                 print(f"  -> Successfully created '{output_filename}'")
+                print(f"  -> Output saved to: {output_path}")
             else:
                 print(f"  -> Failed to process '{filename}'")
+        except Exception as e:
+            print(f"  -> Error processing '{filename}': {e}")
+    
+    print("\nProcessing complete!")
