@@ -1,4 +1,4 @@
-# Use a slim, official Python base image that is compatible with the libraries
+# Use a slim, official Python base image
 FROM python:3.9-slim
 
 # Set the working directory inside the container
@@ -8,12 +8,10 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install Python dependencies
-# The --no-cache-dir flag keeps the image size smaller
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the main application script for Round 1B
-# IMPORTANT: Make sure your Python file is named 'main_1b.py'
+# --- CHANGE THIS LINE ---
 COPY app.py .
 
-# This command will be executed when the container starts
+# --- AND CHANGE THIS LINE ---
 CMD ["python", "app.py"]
