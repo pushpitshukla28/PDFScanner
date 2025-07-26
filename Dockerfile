@@ -1,20 +1,19 @@
-# Use official Python image
+# Use a slim, official Python base image that is compatible with the libraries
 FROM python:3.9-slim
 
-# Set working directory inside container
+# Set the working directory inside the container
 WORKDIR /app
 
-# Install dependencies
+# Copy requirements file first to leverage Docker cache
 COPY requirements.txt .
+
+# Install Python dependencies
+# The --no-cache-dir flag keeps the image size smaller
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your scripts
-COPY app.py .
-COPY main.py .
+# Copy the main application script for Round 1B
+# IMPORTANT: Make sure your Python file is named 'main_1b.py'
+COPY main_1b.py .
 
-# Create empty input/output directories
-RUN mkdir -p input output
-
-# Use ENTRYPOINT for the python command, CMD for default script
-ENTRYPOINT ["python"]
-CMD ["app.py"]
+# This command will be executed when the container starts
+CMD ["python", "main_1b.py"]
