@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "input_documents": [
+      "quarterly_report1.pdf"
+    ],
+    "persona": "Analyst",
+    "job_to_be_done": "Summarize Findings",
+    "processing_timestamp": "2025-07-26T09:59:35.381174",
+    "total_sections_analyzed": 56,
+    "relevant_sections_found": 4,
+    "analysis_method": "Rule-based keyword matching",
+    "document_summaries": [
+      {
+        "filename": "quarterly_report1.pdf",
+        "total_pages": 23,
+        "status": "Successfully processed"
+      }
+    ],
+    "available_personas": [
+      "investment_analyst",
+      "financial_analyst",
+      "product_manager",
+      "researcher",
+      "business_analyst",
+      "marketing_analyst",
+      "analyst"
+    ]
+  },
+  "extracted_sections": [
+    {
+      "document": "quarterly_report1.pdf",
+      "page_number": 5,
+      "section_title": "PREFACE",
+      "importance_rank": 1,
+      "relevance_score": 9.0,
+      "analysis": {
+        "summary": "I am glad to share Quarterly Report of the accounts for the financial year 2017-18. This office has started publishing Quarterly Report to present the integrated and comprehensive picture of the Ministry's finances after closure of the 1st quarter of the financial year 2017-18 and also expenditure a...",
+        "relevance_to_job": "Score: 9.0 | Keywords: analysis (H:1), report (H:2)",
+        "word_count": 83,
+        "keyword_breakdown": {
+          "high_priority": 3,
+          "medium_priority": 0,
+          "low_priority": 0,
+          "job_specific": 0
+        },
+        "matched_keywords": [
+          "analysis (H:1)",
+          "report (H:2)"
+        ]
+      }
+    },
+    {
+      "document": "quarterly_report1.pdf",
+      "page_number": 1,
+      "section_title": "Financial Year 2017-18",
+      "importance_rank": 3,
+      "relevance_score": 3.0,
+      "analysis": {
+        "summary": "(Including data of Financial Year 2016-17)",
+        "relevance_to_job": "Score: 3.0 | Keywords: data (H:1)",
+        "word_count": 6,
+        "keyword_breakdown": {
+          "high_priority": 1,
+          "medium_priority": 0,
+          "low_priority": 0,
+          "job_specific": 0
+        },
+        "matched_keywords": [
+          "data (H:1)"
+        ]
+      }
+    },
+    {
+      "document": "quarterly_report1.pdf",
+      "page_number": 3,
+      "section_title": "Financial Year 2017-18",
+      "importance_rank": 3,
+      "relevance_score": 3.0,
+      "analysis": {
+        "summary": "(Including data of Financial Year 2016-17)",
+        "relevance_to_job": "Score: 3.0 | Keywords: data (H:1)",
+        "word_count": 6,
+        "keyword_breakdown": {
+          "high_priority": 1,
+          "medium_priority": 0,
+          "low_priority": 0,
+          "job_specific": 0
+        },
+        "matched_keywords": [
+          "data (H:1)"
+        ]
+      }
+    },
+    {
+      "document": "quarterly_report1.pdf",
+      "page_number": 21,
+      "section_title": "210.98 crore. The adverse balance under the Beedi worker welfare fund is",
+      "importance_rank": 5,
+      "relevance_score": 0.86,
+      "analysis": {
+        "summary": "due to excess expenditure towards opening of new hospitals, dispensruy and introduction of Revised Integrated Housing scheme, 2005 for the welfare of Beedi Workers in comparison to collection of cess receipts. Position of Beedi Welfare Funds for the year 2016-2017 (~In Crores OB as on Receipt during...",
+        "relevance_to_job": "Score: 0.86 | Keywords: introduction (L:1)",
+        "word_count": 116,
+        "keyword_breakdown": {
+          "high_priority": 0,
+          "medium_priority": 0,
+          "low_priority": 1,
+          "job_specific": 0
+        },
+        "matched_keywords": [
+          "introduction (L:1)"
+        ]
+      }
+    }
+  ]
+}
