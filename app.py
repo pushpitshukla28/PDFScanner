@@ -1,482 +1,157 @@
 #!/usr/bin/env python3
 """
-Simple Document Analyzer - No API Keys Required
-Analyzes PDF documents using keyword-based matching
+Intelligent Document Analyzer for Adobe Hackathon Round 1B
+Analyzes PDF documents using a semantic AI model (Sentence-BERT).
 """
 
 import os
 import json
-import re
 from datetime import datetime
-from collections import Counter
 from typing import List, Dict, Any
-import PyPDF2
 
-class SimpleDocumentAnalyzer:
-    def __init__(self):
-        # Define persona-specific keywords and their weights
-        self.persona_patterns = {
-            'investment_analyst': {
-                'high_priority': ['revenue', 'profit', 'margin', 'earnings', 'roi', 'growth', 'dividend', 'valuation', 'cash flow', 'ebitda'],
-                'medium_priority': ['market', 'competition', 'industry', 'sector', 'trend', 'risk', 'volatility', 'equity', 'debt'],
-                'low_priority': ['customer', 'product', 'service', 'technology', 'operations']
-            },
-            'financial_analyst': {
-                'high_priority': ['cost', 'expense', 'budget', 'cash flow', 'balance sheet', 'income statement', 'financial', 'accounting'],
-                'medium_priority': ['revenue', 'sales', 'profit', 'margin', 'debt', 'equity', 'assets', 'liabilities'],
-                'low_priority': ['market', 'customer', 'product', 'strategy']
-            },
-            'product_manager': {
-                'high_priority': ['feature', 'requirement', 'user', 'customer', 'market fit', 'roadmap', 'product', 'functionality'],
-                'medium_priority': ['technical', 'architecture', 'performance', 'scalability', 'integration', 'api'],
-                'low_priority': ['cost', 'revenue', 'profit', 'financial']
-            },
-            'researcher': {
-                'high_priority': ['methodology', 'results', 'findings', 'conclusion', 'data', 'analysis', 'study', 'research'],
-                'medium_priority': ['hypothesis', 'experiment', 'survey', 'evidence', 'statistics', 'sample'],
-                'low_priority': ['market', 'commercial', 'business', 'cost']
-            },
-            'business_analyst': {
-                'high_priority': ['process', 'workflow', 'requirements', 'stakeholder', 'analysis', 'business', 'strategy'],
-                'medium_priority': ['performance', 'metrics', 'kpi', 'efficiency', 'optimization', 'improvement'],
-                'low_priority': ['technical', 'technology', 'code', 'development']
-            },
-            'marketing_analyst': {
-                'high_priority': ['campaign', 'customer', 'market', 'brand', 'advertising', 'conversion', 'engagement'],
-                'medium_priority': ['sales', 'revenue', 'roi', 'metrics', 'analytics', 'demographics'],
-                'low_priority': ['technical', 'development', 'architecture', 'infrastructure']
-            },
-            'analyst': {  # Adding generic 'analyst' persona as fallback
-                'high_priority': ['analysis', 'data', 'findings', 'results', 'conclusion', 'summary', 'report', 'insights'],
-                'medium_priority': ['trends', 'patterns', 'metrics', 'performance', 'evaluation', 'assessment'],
-                'low_priority': ['background', 'overview', 'introduction', 'methodology']
-            }
-        }
-        
-        # Common stop words to ignore
-        self.stop_words = {
-            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
-            'by', 'this', 'that', 'these', 'those', 'is', 'are', 'was', 'were', 'be', 'been',
-            'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could',
-            'can', 'may', 'might', 'must', 'shall', 'should', 'would', 'could'
-        }
+# For AI-based semantic analysis
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 
-    def extract_text_from_pdf(self, pdf_path: str) -> Dict[str, Any]:
-        """Extract text from PDF with page information"""
-        try:
-            print(f"  Extracting text from: {os.path.basename(pdf_path)}")
-            with open(pdf_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                pages = []
-                
-                for page_num, page in enumerate(pdf_reader.pages):
-                    try:
-                        text = page.extract_text()
-                        if text.strip():  # Only add pages with content
-                            pages.append({
-                                'page_number': page_num + 1,
-                                'text': text
-                            })
-                    except Exception as e:
-                        print(f"    ⚠️  Warning: Could not extract page {page_num + 1}: {e}")
-                        continue
-                
-                return {
-                    'filename': os.path.basename(pdf_path),
-                    'total_pages': len(pages),
-                    'pages': pages
-                }
-        except Exception as e:
-            print(f"  ❌ Error extracting text from {pdf_path}: {e}")
-            return {
-                'filename': os.path.basename(pdf_path),
-                'total_pages': 0,
-                'pages': []
-            }
+# For robust PDF parsing to identify sections
+from pdfminer.high_level import extract_text
 
-    def identify_sections(self, text: str, page_number: int) -> List[Dict]:
-        """Identify sections in the text using simple heuristics"""
-        lines = text.split('\n')
-        sections = []
-        current_section = None
-        current_content = []
-        
-        for line_num, line in enumerate(lines):
-            line = line.strip()
-            if not line:
-                continue
-            
-            # Check if line is a potential header
-            if self.is_likely_header(line):
-                # Save previous section
-                if current_section and current_content:
-                    content_text = ' '.join(current_content)
-                    if len(content_text.strip()) > 20:  # Only save substantial content
-                        sections.append({
-                            'title': current_section,
-                            'content': content_text,
-                            'page_number': page_number,
-                            'start_line': line_num - len(current_content),
-                            'end_line': line_num - 1
-                        })
-                
-                current_section = line
-                current_content = []
-            else:
-                current_content.append(line)
-        
-        # Add final section
-        if current_section and current_content:
-            content_text = ' '.join(current_content)
-            if len(content_text.strip()) > 20:
-                sections.append({
-                    'title': current_section,
-                    'content': content_text,
-                    'page_number': page_number,
-                    'start_line': len(lines) - len(current_content),
-                    'end_line': len(lines) - 1
-                })
-        
-        # If no sections found, treat entire page as one section
-        if not sections and text.strip():
-            # Try to extract a title from the first few lines
-            first_lines = [line.strip() for line in lines[:5] if line.strip()]
-            title = first_lines[0] if first_lines else f"Page {page_number} Content"
-            
-            sections.append({
-                'title': title,
-                'content': text,
-                'page_number': page_number,
-                'start_line': 0,
-                'end_line': len(lines)
-            })
-        
-        return sections
+class IntelligentDocumentAnalyzer:
+    """
+    A class that encapsulates the logic for document analysis using an AI model.
+    """
+    def __init__(self, model_name: str = 'all-MiniLM-L6-v2'):
+        """Initializes the analyzer and loads the AI model."""
+        print("Initializing Analyzer for Round 1B...")
+        # This model is small, fast, runs completely offline on a CPU,
+        # and is excellent at understanding the meaning of text.
+        self.model = SentenceTransformer(model_name)
+        print("AI model loaded successfully.")
 
-    def is_likely_header(self, line: str) -> bool:
-        """Simple heuristics to identify headers"""
-        # Clean the line
-        line = line.strip()
-        
-        # Too short or too long unlikely to be headers
-        if len(line) < 3 or len(line) > 150:
-            return False
-        
-        # Skip lines that are mostly numbers or special characters
-        # FIXED: Properly escape the dash or move it to the end
-        if re.match(r'^[\d\s\.\,\(\)\-]+$', line):
-            return False
-        
-        # All uppercase (common for headers) but not too long
-        if line.isupper() and len(line.split()) <= 12:
-            return True
-        
-        # Starts with number (1. Introduction, 2.1 Analysis, etc.)
-        if re.match(r'^\d+\.?\d*\.?\s+[A-Za-z]', line):
-            return True
-        
-        # Title case and reasonable length
-        if line.istitle() and 3 <= len(line.split()) <= 10:
-            return True
-        
-        # Contains common header patterns
-        header_patterns = [
-            r'^(CHAPTER|SECTION|PART)\s+\d+',
-            r'^(Abstract|Summary|Introduction|Conclusion|Discussion|Results|Methods?|Analysis)',
-            r'^(Overview|Background|Methodology|Findings|Recommendations?)',
-            r'^\d+\.\s+(Introduction|Background|Analysis|Results|Conclusion)',
-        ]
-        
-        for pattern in header_patterns:
-            if re.match(pattern, line, re.IGNORECASE):
-                return True
-        
-        # Ends with colon (often indicates a section start)
-        if line.endswith(':') and len(line.split()) <= 8:
-            return True
-        
-        return False
+    def segment_text_into_chunks(self, full_text: str) -> List[str]:
+        """
+        Breaks the full text of a document into meaningful chunks (e.g., paragraphs).
+        This is a simple but effective way to create sections for analysis.
+        """
+        paragraphs = full_text.split('\n\n')
+        # Filter out very short paragraphs that are unlikely to contain meaningful content
+        return [p.strip() for p in paragraphs if len(p.strip()) > 100]
 
-    def calculate_relevance_score(self, text: str, persona: str, job_description: str) -> Dict[str, Any]:
-        """Calculate relevance score based on keyword matching"""
-        text_lower = text.lower()
-        job_lower = job_description.lower()
+    def analyze_documents_for_persona(self, pdf_paths: List[str], persona: str, job_description: str) -> Dict[str, Any]:
+        """
+        Main analysis function for Round 1B using the AI model.
+        """
+        print("\nStarting AI-powered analysis...")
+        print(f"  -> Persona: {persona}")
+        print(f"  -> Job: {job_description}")
         
-        # Get persona-specific keywords
-        persona_key = persona.lower().replace(' ', '_').replace('-', '_')
-        patterns = self.persona_patterns.get(persona_key, {})
-        
-        # If persona not found, try partial matching
-        if not patterns:
-            for key in self.persona_patterns.keys():
-                if any(word in key for word in persona_key.split('_')):
-                    patterns = self.persona_patterns[key]
-                    break
-        
-        # If still no patterns found, use generic analyst
-        if not patterns:
-            patterns = self.persona_patterns.get('analyst', {})
-        
-        # Score calculation
-        score_breakdown = {
-            'high_priority_matches': 0,
-            'medium_priority_matches': 0,
-            'low_priority_matches': 0,
-            'job_keyword_matches': 0,
-            'total_score': 0,
-            'matched_keywords': []
-        }
-        
-        # Check high priority keywords (weight: 3)
-        for keyword in patterns.get('high_priority', []):
-            pattern = r'\b' + keyword.replace(' ', r'\s+') + r'\b'
-            matches = len(re.findall(pattern, text_lower))
-            if matches > 0:
-                score_breakdown['high_priority_matches'] += matches
-                score_breakdown['matched_keywords'].append(f"{keyword} (H:{matches})")
-        
-        # Check medium priority keywords (weight: 2)
-        for keyword in patterns.get('medium_priority', []):
-            pattern = r'\b' + keyword.replace(' ', r'\s+') + r'\b'
-            matches = len(re.findall(pattern, text_lower))
-            if matches > 0:
-                score_breakdown['medium_priority_matches'] += matches
-                score_breakdown['matched_keywords'].append(f"{keyword} (M:{matches})")
-        
-        # Check low priority keywords (weight: 1)
-        for keyword in patterns.get('low_priority', []):
-            pattern = r'\b' + keyword.replace(' ', r'\s+') + r'\b'
-            matches = len(re.findall(pattern, text_lower))
-            if matches > 0:
-                score_breakdown['low_priority_matches'] += matches
-                score_breakdown['matched_keywords'].append(f"{keyword} (L:{matches})")
-        
-        # Check job-specific keywords (weight: 2.5)
-        job_words = [word for word in job_lower.split() if len(word) > 3 and word not in self.stop_words]
-        for word in job_words:
-            pattern = r'\b' + re.escape(word) + r'\b'
-            matches = len(re.findall(pattern, text_lower))
-            if matches > 0:
-                score_breakdown['job_keyword_matches'] += matches
-                score_breakdown['matched_keywords'].append(f"{word} (J:{matches})")
-        
-        # Calculate total score
-        total_score = (
-            score_breakdown['high_priority_matches'] * 3 +
-            score_breakdown['medium_priority_matches'] * 2 +
-            score_breakdown['low_priority_matches'] * 1 +
-            score_breakdown['job_keyword_matches'] * 2.5
-        )
-        
-        # Normalize by text length (per 100 words)
-        word_count = len(text.split())
-        normalized_score = (total_score / max(word_count / 100, 1)) if word_count > 0 else 0
-        
-        score_breakdown['total_score'] = round(normalized_score, 2)
-        score_breakdown['word_count'] = word_count
-        score_breakdown['raw_score'] = total_score
-        
-        return score_breakdown
+        # The AI query is a combination of the persona and their job for better context
+        ai_query = f"As a {persona}, I need to {job_description}"
+        all_sections = []
 
-    def analyze_documents(self, pdf_paths: List[str], persona: str, job_description: str) -> Dict[str, Any]:
-        """Main analysis function"""
-        print(f"\n Starting analysis...")
-        print(f" Persona: {persona}")
-        print(f" Job: {job_description}")
-        print(f" Documents: {len(pdf_paths)}")
-        
-        all_results = []
-        document_summaries = []
-        total_sections = 0
-        
         for pdf_path in pdf_paths:
-            print(f"\n Processing: {os.path.basename(pdf_path)}")
+            print(f"  -> Processing: {os.path.basename(pdf_path)}")
             
-            # Extract text
-            doc_data = self.extract_text_from_pdf(pdf_path)
-            if not doc_data or doc_data['total_pages'] == 0:
-                print(f"  ⚠️  Warning: No content extracted from {pdf_path}")
-                document_summaries.append({
-                    'filename': os.path.basename(pdf_path),
-                    'total_pages': 0,
-                    'status': 'No content extracted'
-                })
-                continue
-            
-            document_summaries.append({
-                'filename': doc_data['filename'],
-                'total_pages': doc_data['total_pages'],
-                'status': 'Successfully processed'
-            })
-            
-            print(f"  Extracted {doc_data['total_pages']} pages")
-            
-            # Process each page
-            sections_found = 0
-            for page_data in doc_data['pages']:
-                page_text = page_data['text']
-                if not page_text.strip():
+            try:
+                full_text = extract_text(pdf_path)
+                sections = self.segment_text_into_chunks(full_text)
+                
+                if not sections:
+                    print(f"     Warning: No meaningful text sections found in {os.path.basename(pdf_path)}")
                     continue
+
+                # Convert the AI query and all text sections into numerical embeddings
+                query_embedding = self.model.encode([ai_query])
+                section_embeddings = self.model.encode(sections)
                 
-                # Identify sections on this page
-                sections = self.identify_sections(page_text, page_data['page_number'])
-                sections_found += len(sections)
-                
-                for section in sections:
-                    # Calculate relevance
-                    relevance = self.calculate_relevance_score(
-                        section['content'], persona, job_description
-                    )
-                    
-                    # Only include sections with meaningful relevance
-                    if relevance['total_score'] > 0.3:  # Lower threshold for more results
-                        all_results.append({
-                            'document': doc_data['filename'],
-                            'page_number': section['page_number'],
-                            'section_title': section['title'][:100] + ('...' if len(section['title']) > 100 else ''),
-                            'importance_rank': min(max(1, int(6 - relevance['total_score'])), 5),
-                            'relevance_score': relevance['total_score'],
-                            'analysis': {
-                                'summary': section['content'][:300] + ('...' if len(section['content']) > 300 else ''),
-                                'relevance_to_job': f"Score: {relevance['total_score']} | Keywords: {', '.join(relevance['matched_keywords'][:5])}",
-                                'word_count': relevance['word_count'],
-                                'keyword_breakdown': {
-                                    'high_priority': relevance['high_priority_matches'],
-                                    'medium_priority': relevance['medium_priority_matches'],
-                                    'low_priority': relevance['low_priority_matches'],
-                                    'job_specific': relevance['job_keyword_matches']
-                                },
-                                'matched_keywords': relevance['matched_keywords'][:10]  # Top 10 matches
-                            }
+                # Calculate the cosine similarity between the query and each section
+                similarities = cosine_similarity(query_embedding, section_embeddings)[0]
+
+                for i, section_text in enumerate(sections):
+                    relevance_score = float(similarities[i])
+                    if relevance_score > 0.25:  # Relevance threshold to filter out noise
+                        all_sections.append({
+                            'document': os.path.basename(pdf_path),
+                            'content': section_text,
+                            'relevance_score': relevance_score
                         })
-            
-            print(f"  Found {sections_found} sections")
-            total_sections += sections_found
+            except Exception as e:
+                print(f"     ERROR: Failed to process {os.path.basename(pdf_path)}. Reason: {e}")
+
+        # Sort all found sections from all documents by their relevance score
+        all_sections.sort(key=lambda x: x['relevance_score'], reverse=True)
         
-        # Sort by relevance score (highest first)
-        all_results.sort(key=lambda x: x['relevance_score'], reverse=True)
-        
-        print(f"\n Analysis Summary:")
-        print(f"  Total sections analyzed: {total_sections}")
-        print(f"  Relevant sections found: {len(all_results)}")
-        print(f"  Top sections (showing up to 25): {min(len(all_results), 25)}")
-        
-        # Prepare final output
+        # Prepare the final output in the hackathon's required JSON format
         result = {
             'metadata': {
-                'input_documents': [doc['filename'] for doc in document_summaries],
+                'input_documents': [os.path.basename(p) for p in pdf_paths],
                 'persona': persona,
                 'job_to_be_done': job_description,
-                'processing_timestamp': datetime.now().isoformat(),
-                'total_sections_analyzed': total_sections,
-                'relevant_sections_found': len(all_results),
-                'analysis_method': 'Rule-based keyword matching',
-                'document_summaries': document_summaries,
-                'available_personas': list(self.persona_patterns.keys())
+                'processing_timestamp': datetime.now().isoformat()
             },
-            'extracted_sections': all_results[:25]  # Top 25 most relevant sections
+            'extracted_sections': []
         }
-        
+
+        for rank, section in enumerate(all_sections):
+            # Create an "extractive summary" by finding the most relevant sentence in the section
+            sentences = [s.strip() for s in section['content'].replace("\n", " ").split('.') if s]
+            best_sentence = ""
+            if sentences:
+                sentence_embeddings = self.model.encode(sentences)
+                sentence_similarities = cosine_similarity(self.model.encode([ai_query]), sentence_embeddings)[0]
+                best_sentence = sentences[sentence_similarities.argmax()]
+
+            result['extracted_sections'].append({
+                'document': section['document'],
+                'page_number': "N/A", # Page number is harder to get without layout analysis
+                'section_title': f"Relevant Section {rank + 1}",
+                'importance_rank': rank + 1,
+                'refined_text': best_sentence
+            })
+
+        print(f"\nAnalysis complete. Found {len(result['extracted_sections'])} relevant sections.")
         return result
 
-def main():
-    """Command line interface"""
-    import argparse
-    
-    parser = argparse.ArgumentParser(
-        description='Analyze PDF documents without API keys',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python document_analyzer.py --documents report1.pdf report2.pdf --persona "Investment Analyst" --job "Analyze revenue trends"
-  
-  python document_analyzer.py --documents *.pdf --persona "Product Manager" --job "Identify user requirements" --output results.json
-  
-Available personas:
-  - investment_analyst
-  - financial_analyst  
-  - product_manager
-  - researcher
-  - business_analyst
-  - marketing_analyst
-  - analyst (generic fallback)
-        """
-    )
-    
-    parser.add_argument('--documents', nargs='+', required=True, 
-                       help='PDF file paths (supports wildcards)')
-    parser.add_argument('--persona', required=True, 
-                       help='Analyst persona (e.g., "Investment Analyst")')
-    parser.add_argument('--job', required=True, 
-                       help='Job to be done description')
-    parser.add_argument('--output', default='analysis_result.json', 
-                       help='Output JSON file (default: analysis_result.json)')
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Show detailed progress information')
-    
-    args = parser.parse_args()
-    
-    # Expand wildcards and validate files
-    import glob
-    pdf_files = []
-    for pattern in args.documents:
-        matches = glob.glob(pattern)
-        if matches:
-            pdf_files.extend(matches)
-        else:
-            # Check if it's a direct file path
-            if os.path.exists(pattern):
-                pdf_files.append(pattern)
-            else:
-                print(f" Warning: No files found matching: {pattern}")
-    
-    # Filter for PDF files
-    pdf_files = [f for f in pdf_files if f.lower().endswith('.pdf')]
-    
+def run_hackathon_1b():
+    """Main execution function for the Docker container for Round 1B."""
+    input_dir = "/app/input"
+    output_dir = "/app/output"
+
+    if not os.path.exists(input_dir):
+        print(f"FATAL: Input directory {input_dir} not found!")
+        return
+
+    pdf_files = [os.path.join(input_dir, f) for f in os.listdir(input_dir) if f.lower().endswith('.pdf')]
+    persona_file = os.path.join(input_dir, 'persona.json')
+
     if not pdf_files:
-        print(" Error: No PDF files found!")
-        return 1
-    
-    print(f" Ready to analyze {len(pdf_files)} PDF files")
-    
-    # Validate files exist
-    missing_files = [f for f in pdf_files if not os.path.exists(f)]
-    if missing_files:
-        print(f" Error: Files not found: {', '.join(missing_files)}")
-        return 1
-    
-    try:
-        # Run analysis
-        analyzer = SimpleDocumentAnalyzer()
-        result = analyzer.analyze_documents(pdf_files, args.persona, args.job)
+        print("FATAL: No PDF files found in /app/input.")
+        return
+
+    if not os.path.exists(persona_file):
+        print("FATAL: persona.json not found in /app/input. Cannot run Round 1B.")
+        return
         
-        # Save result
-        with open(args.output, 'w', encoding='utf-8') as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
+    with open(persona_file, 'r', encoding='utf-8') as f:
+        persona_info = json.load(f)
+
+    # --- Run Analysis ---
+    analyzer = IntelligentDocumentAnalyzer()
+    result = analyzer.analyze_documents_for_persona(
+        pdf_paths=pdf_files,
+        persona=persona_info['persona'],
+        job_description=persona_info['job_to_be_done']
+    )
+
+    # --- Write Output ---
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
         
-        print(f"\n Analysis complete!")
-        print(f"Results saved to: {args.output}")
-        
-        # Show quick summary
-        if result['extracted_sections']:
-            print(f"\n🏆 Top 3 most relevant sections:")
-            for i, section in enumerate(result['extracted_sections'][:3], 1):
-                print(f"  {i}. {section['document']} (Page {section['page_number']}) - Score: {section['relevance_score']}")
-                print(f"     {section['section_title']}")
-        else:
-            print(f"\n ℹ️  No relevant sections found. Try:")
-            print(f"     - Different persona (available: {', '.join(result['metadata']['available_personas'])})")
-            print(f"     - More specific job description")
-            print(f"     - Check if PDFs contain readable text")
-        
-        return 0
-        
-    except Exception as e:
-        print(f"❌ Error during analysis: {e}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        return 1
+    output_path = os.path.join(output_dir, 'round_1b_result.json')
+    with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump(result, f, indent=2)
+
+    print(f"\n✅ Successfully saved Round 1B analysis to {output_path}")
 
 if __name__ == '__main__':
-    exit(main())
+    run_hackathon_1b()
