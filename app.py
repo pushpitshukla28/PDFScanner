@@ -45,6 +45,11 @@ class SimpleDocumentAnalyzer:
                 'high_priority': ['campaign', 'customer', 'market', 'brand', 'advertising', 'conversion', 'engagement'],
                 'medium_priority': ['sales', 'revenue', 'roi', 'metrics', 'analytics', 'demographics'],
                 'low_priority': ['technical', 'development', 'architecture', 'infrastructure']
+            },
+            'analyst': {  # Adding generic 'analyst' persona as fallback
+                'high_priority': ['analysis', 'data', 'findings', 'results', 'conclusion', 'summary', 'report', 'insights'],
+                'medium_priority': ['trends', 'patterns', 'metrics', 'performance', 'evaluation', 'assessment'],
+                'low_priority': ['background', 'overview', 'introduction', 'methodology']
             }
         }
         
@@ -83,7 +88,11 @@ class SimpleDocumentAnalyzer:
                 }
         except Exception as e:
             print(f"  ❌ Error extracting text from {pdf_path}: {e}")
-            return None
+            return {
+                'filename': os.path.basename(pdf_path),
+                'total_pages': 0,
+                'pages': []
+            }
 
     def identify_sections(self, text: str, page_number: int) -> List[Dict]:
         """Identify sections in the text using simple heuristics"""
@@ -154,7 +163,8 @@ class SimpleDocumentAnalyzer:
             return False
         
         # Skip lines that are mostly numbers or special characters
-        if re.match(r'^[\d\s\-\.\,\(\)]+$', line):
+        # FIXED: Properly escape the dash or move it to the end
+        if re.match(r'^[\d\s\.\,\(\)\-]+$', line):
             return False
         
         # All uppercase (common for headers) but not too long
@@ -162,7 +172,7 @@ class SimpleDocumentAnalyzer:
             return True
         
         # Starts with number (1. Introduction, 2.1 Analysis, etc.)
-        if re.match(r'^\d+\.?\d*\.?\s+[A-Za-Z]', line):
+        if re.match(r'^\d+\.?\d*\.?\s+[A-Za-z]', line):
             return True
         
         # Title case and reasonable length
@@ -202,6 +212,10 @@ class SimpleDocumentAnalyzer:
                 if any(word in key for word in persona_key.split('_')):
                     patterns = self.persona_patterns[key]
                     break
+        
+        # If still no patterns found, use generic analyst
+        if not patterns:
+            patterns = self.persona_patterns.get('analyst', {})
         
         # Score calculation
         score_breakdown = {
@@ -280,13 +294,19 @@ class SimpleDocumentAnalyzer:
             
             # Extract text
             doc_data = self.extract_text_from_pdf(pdf_path)
-            if not doc_data:
-                print(f" Skipping {pdf_path} - could not extract text")
+            if not doc_data or doc_data['total_pages'] == 0:
+                print(f"  ⚠️  Warning: No content extracted from {pdf_path}")
+                document_summaries.append({
+                    'filename': os.path.basename(pdf_path),
+                    'total_pages': 0,
+                    'status': 'No content extracted'
+                })
                 continue
             
             document_summaries.append({
                 'filename': doc_data['filename'],
-                'total_pages': doc_data['total_pages']
+                'total_pages': doc_data['total_pages'],
+                'status': 'Successfully processed'
             })
             
             print(f"  Extracted {doc_data['total_pages']} pages")
@@ -379,6 +399,7 @@ Available personas:
   - researcher
   - business_analyst
   - marketing_analyst
+  - analyst (generic fallback)
         """
     )
     
@@ -442,6 +463,11 @@ Available personas:
             for i, section in enumerate(result['extracted_sections'][:3], 1):
                 print(f"  {i}. {section['document']} (Page {section['page_number']}) - Score: {section['relevance_score']}")
                 print(f"     {section['section_title']}")
+        else:
+            print(f"\n ℹ️  No relevant sections found. Try:")
+            print(f"     - Different persona (available: {', '.join(result['metadata']['available_personas'])})")
+            print(f"     - More specific job description")
+            print(f"     - Check if PDFs contain readable text")
         
         return 0
         

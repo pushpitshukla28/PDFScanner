@@ -1,27 +1,20 @@
-# Use Python 3.9 slim image
+# Use official Python image
 FROM python:3.9-slim
 
-# Set working directory
+# Set working directory inside container
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements first
+# Install dependencies
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy both main.py and app.py
-COPY main.py .
+# Copy your scripts
 COPY app.py .
+COPY main.py .
 
-# Create input and output directories
-RUN mkdir -p /app/input /app/output
+# Create empty input/output directories
+RUN mkdir -p input output
 
-# Default command (can be overridden)
-CMD ["python", "main.py"]
+# Use ENTRYPOINT for the python command, CMD for default script
+ENTRYPOINT ["python"]
+CMD ["app.py"]
