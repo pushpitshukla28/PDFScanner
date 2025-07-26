@@ -1,3 +1,3 @@
 pdfminer.six
-sentence-transformers
-scikit-learn
+
+psutil==5.9.6

@@ -1,17 +1,29 @@
-# Use a slim, official Python base image
+# Use Python 3.9 slim image for smaller size
 FROM python:3.9-slim
 
-# Set the working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# Copy requirements file first to leverage Docker cache
+# Install system dependencies needed for pdfminer.six
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy requirements first for better Docker layer caching
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# --- CHANGE THIS LINE ---
-COPY app.py .
+# Copy the main application
+COPY main.py .
 
-# --- AND CHANGE THIS LINE ---
-CMD ["python", "app.py"]
+# Create input and output directories
+RUN mkdir -p /app/input /app/output
+
+# Set permissions
+RUN chmod +x main.py
+
+# Run the application
+CMD ["python", "main.py"]
