@@ -1,0 +1,11 @@
+{
+  "metadata": {
+    "input_documents": [
+      "South of France - Cities.pdf"
+    ],
+    "persona": "Investment Analyst",
+    "job_to_be_done": "Analyze revenue trends, R&D investments, and market positioning strategies",
+    "processing_timestamp": "2025-07-26T18:31:59.143200"
+  },
+  "extracted_sections": []
+}
