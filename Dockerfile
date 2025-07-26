@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the main application script for Round 1B
 # IMPORTANT: Make sure your Python file is named 'main_1b.py'
-COPY main_1b.py .
+COPY app.py .
 
 # This command will be executed when the container starts
-CMD ["python", "main_1b.py"]
+CMD ["python", "app.py"]
