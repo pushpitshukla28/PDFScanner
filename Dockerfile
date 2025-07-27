@@ -1,20 +1,25 @@
-# Use a slim, official Python base image that is compatible with the libraries
-FROM python:3.9-slim
+# Use Python base image compatible with AMD64
+FROM --platform=linux/amd64 python:3.9-slim
 
-# Set the working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# Copy requirements file first to leverage Docker cache
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
 COPY requirements.txt .
 
 # Install Python dependencies
-# The --no-cache-dir flag keeps the image size smaller
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your polished application script
-# This now points to app.py as requested
+# Create input and output directories
+RUN mkdir -p /app/input /app/output
+
+# Copy the main script
 COPY app.py .
 
-# This command will be executed when the container starts
-# This now runs app.py
+# Set the default command
 CMD ["python", "app.py"]
