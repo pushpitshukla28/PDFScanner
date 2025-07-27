@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  pdfscanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pdfscanner-app
+    
+    # Resource constraints for optimal performance
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # Well under 1GB requirement
+          cpus: '1.0'   # CPU only constraint
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    
+    # Environment variables
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MAX_PROCESSING_TIME=60  # 60 second constraint
+      - MAX_MEMORY_MB=512
+      - LOG_LEVEL=INFO
+    
+    # Volume mounts for input/output
+    volumes:
+      - ./input:/app/input:ro      # Read-only input documents
+      - ./output:/app/output:rw    # Write output JSON files
+      - ./venv:/app/venv:rw        # Virtual environment
+    
+    # Network configuration
+    networks:
+      - pdfscanner-net
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import app; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  pdfscanner-net:
+    driver: bridge
+
+volumes:
+  input-docs:
+    driver: local
+  output-results:
+    driver: local
+  venv-data:
+    driver: local

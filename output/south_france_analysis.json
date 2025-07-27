@@ -1,0 +1,110 @@
+{
+  "metadata": {
+    "input_documents": [
+      "South of France - Cities.pdf",
+      "South of France - Cuisine.pdf",
+      "South of France - History.pdf",
+      "South of France - Restaurants and Hotels.pdf",
+      "South of France - Things to Do.pdf",
+      "South of France - Tips and Tricks.pdf",
+      "South of France - Traditions and Culture.pdf"
+    ],
+    "persona": "Travel Researcher",
+    "job_to_be_done": "Analyze South of France travel information for comprehensive guide creation",
+    "processing_timestamp": "2025-07-27 18:26:12"
+  },
+  "extracted_sections": [
+    {
+      "document": "South of France - Cities.pdf",
+      "page_number": 1,
+      "section_title": "Introduction",
+      "importance_rank": 1
+    },
+    {
+      "document": "South of France - Cities.pdf",
+      "page_number": 5,
+      "section_title": "Introduction",
+      "importance_rank": 2
+    },
+    {
+      "document": "South of France - Cuisine.pdf",
+      "page_number": 1,
+      "section_title": "Introduction",
+      "importance_rank": 3
+    },
+    {
+      "document": "South of France - Cuisine.pdf",
+      "page_number": 3,
+      "section_title": "Introduction",
+      "importance_rank": 4
+    },
+    {
+      "document": "South of France - History.pdf",
+      "page_number": 1,
+      "section_title": "Introduction",
+      "importance_rank": 5
+    },
+    {
+      "document": "South of France - History.pdf",
+      "page_number": 4,
+      "section_title": "Introduction",
+      "importance_rank": 6
+    },
+    {
+      "document": "South of France - Restaurants and Hotels.pdf",
+      "page_number": 1,
+      "section_title": "Introduction",
+      "importance_rank": 7
+    },
+    {
+      "document": "South of France - Restaurants and Hotels.pdf",
+      "page_number": 1,
+      "section_title": "Introduction",
+      "importance_rank": 8
+    },
+    {
+      "document": "South of France - Restaurants and Hotels.pdf",
+      "page_number": 5,
+      "section_title": "Restaurants",
+      "importance_rank": 9
+    },
+    {
+      "document": "South of France - Things to Do.pdf",
+      "page_number": 1,
+      "section_title": "Introduction",
+      "importance_rank": 10
+    }
+  ],
+  "sub_section_analysis": [
+    {
+      "document": "South of France - Cities.pdf",
+      "id": "section_1",
+      "refined_text": "Comprehensive Guide to Major Cities in the South of France.",
+      "page_number_constraints": "Page 1"
+    },
+    {
+      "document": "South of France - Cities.pdf",
+      "id": "section_2",
+      "refined_text": "The South of France, known for its stunning landscapes, Mediterranean coastline, and rich \ncultural heritage, is home to some of the most beautiful and historically significant cities in the \ncountry. This guide provides an in -depth look at the major cities in the South of France, \ndetailing their history, key attractions, cultural highlights, and unique characteristics. Whether you're planning a visit or simply want to learn more about t his enchanting region, this guide \nwill o\ufb00er valuable insights into each city's charm and allure. Overview of the Region  \nThe South of France, or \"Le Midi,\" encompasses the regions of Provence -Alpes -C\u00f4te d'Azur, \nOccitanie, and parts of Nouvelle -Aquitaine. This area is renowned for its diverse landscapes, \nfrom the sun -drenched beaches of the French Riviera to the rolling vineyards of Provence and \nthe rugged Pyrenees mountains. Travel Tips  \n\u2022 Best Time to Visit: The best time to visit the South of France is during the spring (April to June) and fall (September to October) when the weather is pleasant, and the tourist \ncrowds are smaller. Marseille: The Oldest City in France  \nHistory  \nMarseille, founded by Greek sailors around 600 BC, is the oldest city in France.",
+      "page_number_constraints": "Page 5"
+    },
+    {
+      "document": "South of France - Cuisine.pdf",
+      "id": "section_3",
+      "refined_text": "A Culinary Journey Through the South of France.",
+      "page_number_constraints": "Page 1"
+    },
+    {
+      "document": "South of France - Cuisine.pdf",
+      "id": "section_4",
+      "refined_text": "The South of France, known for its stunning landscapes and charming villages, is also a \nparadise for food lovers. The region's cuisine is a delightful blend of Mediterranean flavors, fresh ingredients, and traditional recipes passed down through generations. This guide will \ntake you through the di\ufb00erent types of food, famous dishes, must -visit restaurants, renowned \nwine regions, and the types of wines they produce to help you plan an unforg ettable culinary \nadventure. Types of Food  \nThe cuisine in the South of France is diverse, reflecting the region's rich history and cultural \ninfluences. Here are some key types of food you can expect to find:  \n\u2022 Seafood: With its extensive coastline, the Sout h of France o\ufb00ers an abundance of fresh \nseafood. Proven\u00e7al cuisine also includes dishes like tapenade, a spread made from olives, capers, and anchovies, and pissaladi\u00e8re, a savory tart topped with caramelized onions, olives, and anchovies. \u2022 Ni\u00e7oise Cuisine: Originating from Nice, this cuisine includes dishes like Salade Ni\u00e7oise, a salad with tuna, olives, and anchovies, and Socca, a chickpea flour pancake.",
+      "page_number_constraints": "Page 3"
+    },
+    {
+      "document": "South of France - History.pdf",
+      "id": "section_5",
+      "refined_text": "A Historical Journey Through the South of France.",
+      "page_number_constraints": "Page 1"
+    }
+  ]
+}
