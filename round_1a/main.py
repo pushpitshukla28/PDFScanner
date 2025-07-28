@@ -1,8 +1,88 @@
 import os
 import json
 import re
+import time
+import psutil
+from functools import wraps
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextContainer, LTChar
+
+# Performance monitoring decorator (REMOVE AFTER TESTING)
+def measure_performance(func):
+    """Decorator to measure time, memory, and CPU usage"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Get process info
+        process = psutil.Process(os.getpid())
+        
+        # Before execution
+        start_time = time.perf_counter()
+        start_memory = process.memory_info().rss / 1024 / 1024  # MB
+        start_cpu_percent = process.cpu_percent()
+        
+        # Execute function
+        result = func(*args, **kwargs)
+        
+        # After execution
+        end_time = time.perf_counter()
+        end_memory = process.memory_info().rss / 1024 / 1024  # MB
+        end_cpu_percent = process.cpu_percent()
+        
+        # Calculate metrics
+        execution_time = end_time - start_time
+        memory_used = end_memory - start_memory
+        
+        print(f"\n{'='*60}")
+        print(f"PERFORMANCE METRICS FOR {func._name_.upper()}")
+        print(f"{'='*60}")
+        print(f"Execution Time: {execution_time:.4f} seconds")
+        print(f"Memory Usage: {end_memory:.2f} MB (Δ {memory_used:+.2f} MB)")
+        print(f" CPU Usage: {end_cpu_percent:.2f}%")
+        print(f"Time per page: {execution_time/get_page_count(args[0]) if args else 0:.4f}s")
+        
+        # Performance assessment
+        if execution_time <= 10:
+            print(f"PASSED: Execution time within 10s limit")
+        else:
+            print(f"FAILED: Execution time exceeded 10s limit")
+            
+        if end_memory <= 200:
+            print(f"PASSED: Memory usage within 200MB limit")
+        else:
+            print(f"FAILED: Memory usage exceeded 200MB limit")
+        
+        return result
+    return wrapper
+
+def get_page_count(pdf_path):
+    """Quick page count estimation"""
+    try:
+        page_count = sum(1 for _ in extract_pages(pdf_path))
+        return page_count
+    except:
+        return 1
+
+# Context manager for timing code sections (REMOVE AFTER TESTING)
+class TimeComplexityProfiler:
+    """Profile specific code sections"""
+    def _init_(self, section_name):
+        self.section_name = section_name
+        self.start_time = None
+        self.process = psutil.Process(os.getpid())
+        
+    def _enter_(self):
+        self.start_time = time.perf_counter()
+        self.start_memory = self.process.memory_info().rss / 1024 / 1024
+        print(f"Starting {self.section_name}...")
+        return self
+        
+    def _exit_(self, exc_type, exc_val, exc_tb):
+        end_time = time.perf_counter()
+        end_memory = self.process.memory_info().rss / 1024 / 1024
+        elapsed = end_time - self.start_time
+        memory_delta = end_memory - self.start_memory
+        
+        print(f"  {self.section_name}: {elapsed:.4f}s (Δ{memory_delta:+.2f}MB)")
 
 def get_text_properties(text_element):
     """
@@ -97,6 +177,7 @@ def classify_heading_level(font_size, unique_font_sizes):
     else:
         return "H3"
 
+@measure_performance  # REMOVE THIS DECORATOR AFTER TESTING
 def extract_outline_from_pdf(pdf_path):
     """
     Optimized main function focused on speed and essential functionality.
@@ -105,31 +186,33 @@ def extract_outline_from_pdf(pdf_path):
     all_text_elements = []
     
     # Single pass collection with minimal processing
-    try:
-        for page_layout in extract_pages(pdf_path):
-            for element in page_layout:
-                if isinstance(element, LTTextContainer):
-                    text_content = element.get_text().strip()
-                    if text_content and len(text_content) < 500:  # Pre-filter very long text
-                        avg_font_size, is_bold = get_text_properties(element)
-                        if avg_font_size > 0:  # Only add elements with valid font size
-                            all_text_elements.append({
-                                'text': text_content,
-                                'font_size': avg_font_size,
-                                'is_bold': is_bold,
-                                'page_number': page_layout.pageid
-                            })
-    except Exception as e:
-        print(f"Error during PDF parsing: {e}")
-        return None
+    with TimeComplexityProfiler("PDF Parsing"):  # REMOVE AFTER TESTING
+        try:
+            for page_layout in extract_pages(pdf_path):
+                for element in page_layout:
+                    if isinstance(element, LTTextContainer):
+                        text_content = element.get_text().strip()
+                        if text_content and len(text_content) < 500:  # Pre-filter very long text
+                            avg_font_size, is_bold = get_text_properties(element)
+                            if avg_font_size > 0:  # Only add elements with valid font size
+                                all_text_elements.append({
+                                    'text': text_content,
+                                    'font_size': avg_font_size,
+                                    'is_bold': is_bold,
+                                    'page_number': page_layout.pageid
+                                })
+        except Exception as e:
+            print(f"Error during PDF parsing: {e}")
+            return None
 
     if not all_text_elements:
         return {"title": "Empty Document", "outline": []}
 
     # Fast font size analysis
-    all_font_sizes = [el['font_size'] for el in all_text_elements]
-    avg_doc_font_size = sum(all_font_sizes) / len(all_font_sizes)
-    unique_font_sizes = sorted(list(set(all_font_sizes)), reverse=True)
+    with TimeComplexityProfiler("Font Analysis"):  # REMOVE AFTER TESTING
+        all_font_sizes = [el['font_size'] for el in all_text_elements]
+        avg_doc_font_size = sum(all_font_sizes) / len(all_font_sizes)
+        unique_font_sizes = sorted(list(set(all_font_sizes)), reverse=True)
     
     # Quick title detection - first large text on page 1
     document_title = "Untitled Document"
@@ -143,24 +226,120 @@ def extract_outline_from_pdf(pdf_path):
             break
 
     # Fast heading detection
-    outline = []
-    for item in all_text_elements:
-        if item['text'] != document_title:  # Don't include title as heading
-            if is_potential_heading(item['text'], item['font_size'], 
-                                  item['is_bold'], avg_doc_font_size):
-                level = classify_heading_level(item['font_size'], unique_font_sizes)
-                outline.append({
-                    "level": level,
-                    "text": item['text'],
-                    "page": item['page_number']
-                })
+    with TimeComplexityProfiler("Heading Detection"):  # REMOVE AFTER TESTING
+        outline = []
+        for item in all_text_elements:
+            if item['text'] != document_title:  # Don't include title as heading
+                if is_potential_heading(item['text'], item['font_size'], 
+                                      item['is_bold'], avg_doc_font_size):
+                    level = classify_heading_level(item['font_size'], unique_font_sizes)
+                    outline.append({
+                        "level": level,
+                        "text": item['text'],
+                        "page": item['page_number']
+                    })
 
     return {
         "title": document_title,
         "outline": outline
     }
 
-if __name__ == "__main__":  # Fixed this line
+# TESTING FUNCTIONS (REMOVE AFTER TESTING)
+def estimate_complexity(pdf_path):
+    """Estimate time complexity based on PDF characteristics"""
+    try:
+        page_count = 0
+        element_count = 0
+        char_count = 0
+        
+        print(f"\nCOMPLEXITY ANALYSIS")
+        print(f"{'='*40}")
+        
+        for page_layout in extract_pages(pdf_path):
+            page_count += 1
+            for element in page_layout:
+                if isinstance(element, LTTextContainer):
+                    element_count += 1
+                    char_count += len(element.get_text())
+        
+        print(f"Pages: {page_count}")
+        print(f"Text Elements: {element_count}")
+        print(f"Characters: {char_count}")
+        print(f"Elements per Page: {element_count/page_count:.1f}")
+        print(f"Characters per Element: {char_count/element_count:.1f}")
+        
+        # Complexity estimation
+        print(f"\n ESTIMATED COMPLEXITY:")
+        print(f"  Time: O(n) where n = {element_count} text elements")
+        print(f"  Space: O(k) where k = {element_count} elements stored")
+        
+        # Performance prediction
+        estimated_time = element_count * 0.0001  # Rough estimate
+        print(f"  Predicted Time: ~{estimated_time:.2f} seconds")
+        
+        return {
+            'pages': page_count,
+            'elements': element_count,
+            'characters': char_count,
+            'estimated_time': estimated_time
+        }
+        
+    except Exception as e:
+        print(f"Error in complexity analysis: {e}")
+        return None
+
+def load_test_simulation(pdf_path, iterations=3):
+    """Simulate multiple runs to test consistency"""
+    print(f"\n LOAD TEST SIMULATION ({iterations} iterations)")
+    print(f"{'='*50}")
+    
+    times = []
+    memories = []
+    
+    for i in range(iterations):
+        process = psutil.Process(os.getpid())
+        start_time = time.perf_counter()
+        start_memory = process.memory_info().rss / 1024 / 1024
+        
+        # Run your main function here
+        try:
+            result = extract_outline_from_pdf(pdf_path)  # Your main function
+            
+            end_time = time.perf_counter()
+            end_memory = process.memory_info().rss / 1024 / 1024
+            
+            elapsed = end_time - start_time
+            memory_used = end_memory
+            
+            times.append(elapsed)
+            memories.append(memory_used)
+            
+            print(f"  Run {i+1}: {elapsed:.4f}s, {memory_used:.2f}MB")
+            
+        except Exception as e:
+            print(f"  Run {i+1}: FAILED - {e}")
+    
+    if times:
+        avg_time = sum(times) / len(times)
+        min_time = min(times)
+        max_time = max(times)
+        avg_memory = sum(memories) / len(memories)
+        
+        print(f"\nLOAD TEST RESULTS:")
+        print(f"  Average Time: {avg_time:.4f}s")
+        print(f"  Min Time: {min_time:.4f}s")
+        print(f"  Max Time: {max_time:.4f}s")
+        print(f"  Time Variance: {max_time - min_time:.4f}s")
+        print(f"  Average Memory: {avg_memory:.2f}MB")
+        
+        # Consistency check
+        variance = max_time - min_time
+        if variance < 1.0:  # Less than 1 second variance
+            print(f"  CONSISTENT: Low time variance")
+        else:
+            print(f"  INCONSISTENT: High time variance")
+
+if _name_ == "_main_":
     input_dir = "/app/input"
     output_dir = "/app/output"
 
@@ -188,11 +367,14 @@ if __name__ == "__main__":  # Fixed this line
         output_filename = os.path.splitext(filename)[0] + ".json"
         output_path = os.path.join(output_dir, output_filename)
 
-        print(f"Processing '{filename}'...")
+        print(f"\nTESTING {filename}")  # REMOVE AFTER TESTING
         
         if not os.path.exists(pdf_path):
             print(f"Error: File {pdf_path} does not exist!")
             continue
+        
+        # TESTING CODE (REMOVE AFTER TESTING)
+        estimate_complexity(pdf_path)
             
         try:
             outline_data = extract_outline_from_pdf(pdf_path)
@@ -200,11 +382,14 @@ if __name__ == "__main__":  # Fixed this line
             if outline_data:
                 with open(output_path, 'w', encoding='utf-8') as f:
                     json.dump(outline_data, f, indent=2, ensure_ascii=False)
-                print(f"  -> Created '{output_filename}' with {len(outline_data['outline'])} headings")
+                print(f"  Created '{output_filename}' with {len(outline_data['outline'])} headings")
+                
+                # OPTIONAL: Load test (REMOVE AFTER TESTING)
+                # load_test_simulation(pdf_path, iterations=3)
             else:
-                print(f"  -> Failed to process '{filename}'")
+                print(f"  Failed to process '{filename}'")
                 
         except Exception as e:
-            print(f"  -> Error processing '{filename}': {e}")
+            print(f"  Error processing '{filename}': {e}")
     
-    print("Processing complete!")
+    print("\n Processing complete!")
